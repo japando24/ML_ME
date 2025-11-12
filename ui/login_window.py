@@ -7,8 +7,7 @@ from PyQt6.QtCore import Qt
 # 1. Dùng .ui_login vì file ui_login.py nằm CÙNG thư mục 'ui'
 from .ui_login import Ui_LoginWindow
 
-# 2. Import db_connector từ thư mục 'connectors' (tính từ gốc project)
-from connectors.database_connector import db_connector
+from connectors.database_connector import connect
 
 # 3. Dùng .main_window vì file main_window.py nằm CÙNG thư mục 'ui'
 from .main_window import MainWindow
@@ -43,7 +42,7 @@ class LoginWindow(QMainWindow, Ui_LoginWindow):
             return
 
         # Dòng này bây giờ sẽ chạy được vì db_connector đã được import
-        success, role = db_connector.verify_employee(email, password)
+        success, role = connect.verify_employee(email, password)
 
         if success:
             # Đăng nhập thành công
