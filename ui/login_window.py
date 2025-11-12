@@ -1,3 +1,5 @@
+# japando24/ml_me/ML_ME-3c09f051e4b364e1f1378f218bbebd9ff4120b9e/ui/login_window.py
+
 import sys
 from PyQt6.QtWidgets import QMainWindow, QMessageBox
 from PyQt6.QtGui import QPalette, QColor
@@ -7,6 +9,7 @@ from PyQt6.QtCore import Qt
 # 1. Dùng .ui_login vì file ui_login.py nằm CÙNG thư mục 'ui'
 from .ui_login import Ui_LoginWindow
 
+# 2. Import instance 'connect' từ file database_connector
 from connectors.database_connector import connect
 
 # 3. Dùng .main_window vì file main_window.py nằm CÙNG thư mục 'ui'
@@ -34,14 +37,16 @@ class LoginWindow(QMainWindow, Ui_LoginWindow):
         self.lbl_message.setPalette(palette)
 
     def handle_login(self):
-        email = self.txt_email.text()
-        password = self.txt_password.text()
+        # SỬA Ở ĐÂY: Thêm .strip()
+        email = self.txt_email.text().strip()
+        password = self.txt_password.text().strip()
 
         if not email or not password:
             self.lbl_message.setText("Vui lòng nhập email và password.")
             return
 
-        # Dòng này bây giờ sẽ chạy được vì db_connector đã được import
+        # Dòng này bây giờ sẽ chạy được vì 'connect' đã được import
+        # và phương thức 'verify_employee' đã được thêm vào
         success, role = connect.verify_employee(email, password)
 
         if success:
@@ -65,25 +70,22 @@ class LoginWindow(QMainWindow, Ui_LoginWindow):
                 self.txt_email.setEnabled(False)
                 self.txt_password.setEnabled(False)
 
-                # Hiển thị thông báo (thay vì alert)
                 QMessageBox.critical(self, "Lỗi Đăng Nhập", "Chức năng đăng nhập đã bị khóa do sai quá 3 lần.")
 
     def open_main_window(self, role):
         """
         Khởi tạo và hiển thị màn hình chính, truyền role vào.
         """
-        # Kiểm tra xem cửa sổ chính đã được tạo chưa
         if self.main_window is None:
-            self.main_window = MainWindow(role)  # Truyền role vào constructor
+            self.main_window = MainWindow(role)
 
-        self.main_window.show()  # Hiển thị cửa sổ chính
-        self.close()  # Đóng cửa sổ đăng nhập
+        self.main_window.show()
+        self.close()
 
     def closeEvent(self, event):
         """Đảm bảo đóng kết nối DB khi tắt cửa sổ."""
-        # Nếu cửa sổ chính không được mở (ví dụ: người dùng tắt login)
-        # thì chúng ta nên đóng kết nối DB
         if self.main_window is None:
-            db_connector.close()
+            # === SỬA LỖI: Đổi 'db_connector' thành 'connect' ===
+            connect.close()
             print("Người dùng đã tắt cửa sổ Login. Đóng kết nối DB.")
         event.accept()

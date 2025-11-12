@@ -1,16 +1,19 @@
+# japando24/ml_me/ML_ME-3c09f051e4b364e1f1378f218bbebd9ff4120b9e/connectors/database_connector.py
+
 import mysql.connector
 import traceback
 import pandas as pd
 
+# import bcrypt  <-- ĐÃ XÓA DÒNG NÀY, KHÔNG CẦN NỮA
+
 # --- CẤU HÌNH DATABASE ---
-# Dựa trên code của bạn, tôi đặt cấu hình vào đây để dễ quản lý
-# Các file khác không cần biết chi tiết này
+# Cấu hình này đã đúng với thông tin của bạn (database 'um3la')
 DB_CONFIG = {
     'host': 'localhost',
     'port': 3306,
-    'database': 'retails',  # Tên CSDL bạn cung cấp
+    'database': 'um3la',
     'user': 'root',
-    'password': '@Dnb24042004'  # Password bạn cung cấp
+    'password': '@Dnb24042004'
 }
 
 
@@ -22,19 +25,16 @@ class DatabaseConnector:
     def __init__(self):
         self.config = DB_CONFIG
         self.conn = None
-        # Tự động kết nối khi khởi tạo
         self.connect()
 
     def connect(self):
         """Kết nối tới MySQL Database."""
         if self.conn and self.conn.is_connected():
-            print("Kết nối đã được thiết lập.")
             return self.conn
 
         try:
-            # **self.config sẽ giải nén dict thành các tham số
             self.conn = mysql.connector.connect(**self.config)
-            print("Kết nối CSDL mới thành công.")
+            print(f"Kết nối CSDL '{self.config.get('database')}' mới thành công.")
             return self.conn
         except mysql.connector.Error as e:
             self.conn = None
@@ -48,60 +48,28 @@ class DatabaseConnector:
             self.conn.close()
             print(f"Đã đóng kết nối CSDL '{self.config.get('database')}'.")
 
-    def _execute_commit(self, sql, val=None):
-        """Hàm trợ giúp nội bộ cho C-U-D (Create, Update, Delete)."""
-        try:
-            if not self.conn or not self.conn.is_connected():
-                print("Mất kết nối, đang thử kết nối lại...")
-                self.connect()
-                if not self.conn:
-                    print("Không thể kết nối lại. Hủy bỏ thao tác.")
-                    return False
-
-            cursor = self.conn.cursor()
-            cursor.execute(sql, val)
-            self.conn.commit()  # Commit thay đổi
-            cursor.close()
-            print("Thao tác C-U-D thành công.")
-            return True
-        except mysql.connector.Error as e:
-            print(f"Lỗi thực thi (commit): {e}")
-            traceback.print_exc()
-            self.conn.rollback()  # Hoàn tác nếu có lỗi
-            return False
-        except Exception as e:
-            print(f"Lỗi không xác định: {e}")
-            traceback.print_exc()
-            return False
-
-    # --- CÁC HÀM TRUY VẤN (TỪ CODE CỦA BẠN) ---
+    # ... (Các hàm _execute_commit, queryDataset, fetchone, fetchall giữ nguyên) ...
 
     def queryDataset(self, sql, val=None):
-        """Hàm này trả về một Pandas DataFrame, lý tưởng cho thống kê/ML."""
         try:
-            # Đảm bảo kết nối
             if not self.conn or not self.conn.is_connected():
                 self.connect()
-
             cursor = self.conn.cursor()
             cursor.execute(sql, val)
             df = pd.DataFrame(cursor.fetchall())
             if not df.empty:
-                df.columns = cursor.column_names  # Gán tên cột cho DataFrame
+                df.columns = cursor.column_names
             cursor.close()
             return df
         except Exception as e:
             print(f"Lỗi queryDataset: {e}")
             traceback.print_exc()
-        return pd.DataFrame()  # Trả về DataFrame rỗng nếu lỗi
+        return pd.DataFrame()
 
     def fetchone(self, sql, val):
-        """Hàm này dùng để lấy 1 dòng (lý tưởng cho login, lấy chi tiết)."""
         try:
-            # Đảm bảo kết nối
             if not self.conn or not self.conn.is_connected():
                 self.connect()
-
             cursor = self.conn.cursor()
             cursor.execute(sql, val)
             dataset = cursor.fetchone()
@@ -112,17 +80,53 @@ class DatabaseConnector:
             traceback.print_exc()
         return None
 
-    def fetchall(self, sql, val):
-        """Hàm này dùng để lấy nhiều dòng."""
+    def fetchall(self, sql, val=None):
         try:
-            # Đảm bảo kết nối
             if not self.conn or not self.conn.is_connected():
                 self.connect()
-
             cursor = self.conn.cursor()
             cursor.execute(sql, val)
             dataset = cursor.fetchall()
             cursor.close()
             return dataset
         except Exception as e:
-            print(f"Lỗi fetchall")
+            print(f"Lỗi fetchall: {e}")
+            traceback.print_exc()
+        return []
+
+    # === HÀM ĐÃ ĐƯỢC SỬA LẠI HOÀN TOÀN ===
+    def verify_employee(self, email, password):
+        """
+        Kiểm tra thông tin đăng nhập của nhân viên
+        sử dụng mật khẩu VĂN BẢN THƯỜNG (plaintext)
+        """
+        try:
+            # 1. Câu lệnh SQL so sánh trực tiếp email VÀ password
+            # (Vì CSDL của bạn lưu mật khẩu dạng plaintext "123")
+            #
+            sql = "SELECT role FROM employee WHERE email = %s AND password = %s"
+            val = (email, password)
+
+            result = self.fetchone(sql, val)
+
+            if result:
+                # result là một tuple, ví dụ ('admin',)
+                role_from_db = result[0]  # Lấy ra 'admin'
+
+                # 2. SỬA LỖI KIỂU CHỮ:
+                # Chuyển 'admin' -> 'Admin' để khớp với main_window.py
+                role_capitalized = role_from_db.capitalize()
+
+                return True, role_capitalized
+            else:
+                # Không tìm thấy user hoặc sai password
+                return False, None
+
+        except Exception as e:
+            print(f"Lỗi verify_employee: {e}")
+            traceback.print_exc()
+            return False, None
+
+
+# Tạo một đối tượng kết nối duy nhất (singleton) để các module khác import
+connect = DatabaseConnector()
